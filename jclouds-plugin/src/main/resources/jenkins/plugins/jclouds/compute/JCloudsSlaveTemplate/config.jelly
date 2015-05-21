@@ -159,6 +159,9 @@
         <f:entry title="Key Pair Name" field="keyPairName">
           <f:textbox />
         </f:entry>
+        <f:entry title="Availability Zone" field="availabilityZone">
+          <f:textbox />
+        </f:entry>
       </f:section>
 
       <f:section title="CloudStack Options">

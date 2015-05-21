@@ -109,6 +109,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final boolean waitPhoneHome;
     public final int waitPhoneHomeTimeout;
     public final String keyPairName;
+    public final String availabilityZone;
     public final boolean assignPublicIp;
     public final String networks;
     public final String securityGroups;
@@ -124,7 +125,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                 final String initScript, final String userData, final String numExecutors, final boolean stopOnTerminate, final String vmPassword,
                                 final String vmUser, final boolean preInstalledJava, final String jvmOptions, final boolean preExistingJenkinsUser,
                                 final String fsRoot, final boolean allowSudo, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
-                                final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName,
+                                final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName, final String availabilityZone, 
                                 final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
 
         this.name = Util.fixEmptyAndTrim(name);
@@ -155,6 +156,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.waitPhoneHome = waitPhoneHome;
         this.waitPhoneHomeTimeout = waitPhoneHomeTimeout;
         this.keyPairName = keyPairName;
+        this.availabilityZone = availabilityZone;
         this.assignPublicIp = assignPublicIp;
         this.networks = networks;
         this.securityGroups = securityGroups;
@@ -275,6 +277,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (!Strings.isNullOrEmpty((keyPairName)) && options instanceof NovaTemplateOptions) {
             LOGGER.info("Setting keyPairName to " + keyPairName);
             options.as(NovaTemplateOptions.class).keyPairName(keyPairName);
+        }
+
+        if (!Strings.isNullOrEmpty((availabilityZone)) && options instanceof NovaTemplateOptions) {
+            LOGGER.info("Setting availabilityZone to " + availabilityZone);
+            options.as(NovaTemplateOptions.class).availabilityZone(availabilityZone);
         }
 
         if (options instanceof CloudStackTemplateOptions) {
