@@ -164,6 +164,12 @@
         </f:entry>
       </f:section>
 
+      <f:optionalBlock title="Override Server Openstack Options" name="overrideOpenstackOptions" checked="false">
+        <f:entry title="Use Config Drive" field="useConfigDrive">
+          <f:checkbox default="false"/>
+        </f:entry>
+      </f:optionalBlock>
+
       <f:section title="CloudStack Options">
         <f:entry title="Assign Public IP" field="assignPublicIp">
           <f:checkbox default="true"/>

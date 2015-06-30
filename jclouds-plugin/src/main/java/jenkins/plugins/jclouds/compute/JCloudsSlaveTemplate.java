@@ -70,6 +70,7 @@ import com.cloudbees.jenkins.plugins.sshcredentials.SSHAuthenticator;
 
 import com.trilead.ssh2.Connection;
 
+
 /**
  * @author Vijay Kiran
  */
@@ -110,6 +111,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final int waitPhoneHomeTimeout;
     public final String keyPairName;
     public final String availabilityZone;
+    public final OverrideOpenstackOptions overrideOpenstackOptions;
     public final boolean assignPublicIp;
     public final String networks;
     public final String securityGroups;
@@ -119,6 +121,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
 
     protected transient JCloudsCloud cloud;
 
+    public static class OverrideOpenstackOptions {
+        private boolean useConfigDrive;
+
+        @DataBoundConstructor
+        public OverrideOpenstackOptions(boolean useConfigDrive) {
+            this.useConfigDrive = useConfigDrive;
+        }
+    }
+
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId, final double cores,
                                 final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
@@ -126,7 +137,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                 final String vmUser, final boolean preInstalledJava, final String jvmOptions, final boolean preExistingJenkinsUser,
                                 final String fsRoot, final boolean allowSudo, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
                                 final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName, final String availabilityZone, 
-                                final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
+                                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
 
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
@@ -157,6 +168,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.waitPhoneHomeTimeout = waitPhoneHomeTimeout;
         this.keyPairName = keyPairName;
         this.availabilityZone = availabilityZone;
+        this.overrideOpenstackOptions = overrideOpenstackOptions;
         this.assignPublicIp = assignPublicIp;
         this.networks = networks;
         this.securityGroups = securityGroups;
@@ -282,6 +294,13 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         if (!Strings.isNullOrEmpty((availabilityZone)) && options instanceof NovaTemplateOptions) {
             LOGGER.info("Setting availabilityZone to " + availabilityZone);
             options.as(NovaTemplateOptions.class).availabilityZone(availabilityZone);
+        }
+
+        if (overrideOpenstackOptions != null) {
+            if (overrideOpenstackOptions.useConfigDrive && options instanceof NovaTemplateOptions) {
+                LOGGER.info("Setting configDrive to " + overrideOpenstackOptions.useConfigDrive);
+                options.as(NovaTemplateOptions.class).configDrive(overrideOpenstackOptions.useConfigDrive);
+            }
         }
 
         if (options instanceof CloudStackTemplateOptions) {
