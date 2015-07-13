@@ -38,9 +38,10 @@
         </f:entry>
     </f:advanced>
     <f:entry title="Cloud Instance Templates" description="${%List of Cloud Instances to be launched as slaves}">
-        <f:repeatable field="templates">
-            <st:include page="config.jelly" class="${descriptor.clazz}"/>
-        </f:repeatable>
+        <!-- Creates a drop down box to 'Add' any classes that implements Describable that extend the type of 'templates',
+              i.e. JCloudsSlaveTemplate. The menu text is given by the DescriptorImpl.getDisplayName() of the class -->
+        <f:repeatableHeteroProperty field="templates" hasHeader="true">
+        </f:repeatableHeteroProperty>
     </f:entry>
     <f:validateButton title="${%Generate Key Pair}" progress="${%Generate...}" method="generateKeyPair" with="identity,credential"/>
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="providerName,identity,credential,privateKey,endPointUrl"/>

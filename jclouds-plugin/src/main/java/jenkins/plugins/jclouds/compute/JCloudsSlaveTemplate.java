@@ -130,6 +130,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
+    
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId, final double cores,
                                 final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
@@ -421,11 +422,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     @Extension
-    public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
+    public static class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
 
         @Override
         public String getDisplayName() {
-            return null;
+            return "JCloudsSlaveTemplate (SSH)";
         }
 
         public FormValidation doCheckName(@QueryParameter String value) {
