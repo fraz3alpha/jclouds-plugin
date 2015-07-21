@@ -42,6 +42,11 @@
               i.e. JCloudsSlaveTemplate. The menu text is given by the DescriptorImpl.getDisplayName() of the class -->
         <f:repeatableHeteroProperty field="templates" hasHeader="true">
         </f:repeatableHeteroProperty>
+        <!--
+        <f:repeatable field="templates">
+        <st:include page="config.jelly" class="${descriptor.clazz}"/>
+        </f:repeatable>
+        -->
     </f:entry>
     <f:validateButton title="${%Generate Key Pair}" progress="${%Generate...}" method="generateKeyPair" with="identity,credential"/>
     <f:validateButton title="Test Connection" progress="${%Testing...}" method="testConnection" with="providerName,identity,credential,privateKey,endPointUrl"/>

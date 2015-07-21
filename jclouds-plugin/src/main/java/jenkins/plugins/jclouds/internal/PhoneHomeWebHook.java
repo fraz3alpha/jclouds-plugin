@@ -13,6 +13,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import jenkins.plugins.jclouds.compute.AbstractJCloudsSlave;
 import jenkins.plugins.jclouds.compute.JCloudsComputer;
 import jenkins.plugins.jclouds.compute.JCloudsSlave;
 import org.jclouds.compute.domain.NodeMetadata;
@@ -58,10 +59,13 @@ public class PhoneHomeWebHook implements UnprotectedRootAction {
         try {
             for (final Computer c : Jenkins.getInstance().getComputers()) {
                 if (JCloudsComputer.class.isInstance(c)) {
-                    final JCloudsSlave slave = ((JCloudsComputer) c).getNode();
-                    if (slave.getNodeMetaData().getHostname().equals(hostName)) {
-                        slave.setWaitPhoneHome(false);
-                    }
+                	AbstractJCloudsSlave aSlave = ((JCloudsComputer) c).getNode();
+                	if (aSlave instanceof JCloudsSlave) {
+	                    final JCloudsSlave slave = (JCloudsSlave) aSlave;
+	                    if (slave.getNodeMetaData().getHostname().equals(hostName)) {
+	                        slave.setWaitPhoneHome(false);
+	                    }
+                	}
                 }
             }
         } finally {

@@ -1,6 +1,5 @@
 <j:jelly xmlns:j="jelly:core"
          xmlns:f="/lib/form" xmlns:c="/lib/credentials">
-  <table width="100%" class="pane">
     <f:section title="General Configuration">
       <f:entry title="Name" field="name">
         <f:textbox/>
@@ -177,11 +176,5 @@
       </f:section>
       
     </f:advanced>
-    <f:entry title="">
-      <div align="right">
-        <f:repeatableDeleteButton/>
-      </div>
-    </f:entry>
     
-  </table>
 </j:jelly>

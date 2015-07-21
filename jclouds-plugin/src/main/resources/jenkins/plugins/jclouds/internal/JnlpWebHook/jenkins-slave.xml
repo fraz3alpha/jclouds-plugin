@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<service>
+<id>@@slave_id@@</id>
+<name>Jenkins Slave</name>
+<description>This service runs a slave for Jenkins continuous integration system.</description>
+<executable>@@java@@</executable>
+<arguments>-Xrs -jar "%BASE%\slave.jar" -jnlpUrl @@server@@/computer/@@slave_id@@/slave-agent.jnlp -secret @@secret@@</arguments>
+<logmode>rotate</logmode>
+<onfailure action="restart"/>
+</service>

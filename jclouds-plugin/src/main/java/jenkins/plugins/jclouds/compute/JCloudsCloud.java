@@ -33,6 +33,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
+
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.apis.Apis;
@@ -79,7 +80,7 @@ public class JCloudsCloud extends Cloud {
     public final String profile;
     private final int retentionTime;
     public int instanceCap;
-    public final List<JCloudsSlaveTemplate> templates;
+    public final List<? extends JCloudsSlaveTemplate> templates;
     public final int scriptTimeout;
     public final int startTimeout;
     private transient ComputeService compute;
@@ -103,8 +104,11 @@ public class JCloudsCloud extends Cloud {
     @DataBoundConstructor
     public JCloudsCloud(final String profile, final String providerName, final String identity, final String credential, final String privateKey,
                         final String publicKey, final String endPointUrl, final int instanceCap, final int retentionTime, final int scriptTimeout, final int startTimeout,
-                        final String zones, final List<JCloudsSlaveTemplate> templates) {
+                        final String zones, final List<? extends JCloudsSlaveTemplate> templates) {
         super(Util.fixEmptyAndTrim(profile));
+        
+        LOGGER.info("Instantiating JCloudsCloud");
+        
         this.profile = Util.fixEmptyAndTrim(profile);
         this.providerName = Util.fixEmptyAndTrim(providerName);
         this.identity = Util.fixEmptyAndTrim(identity);
@@ -176,9 +180,14 @@ public class JCloudsCloud extends Cloud {
         return compute;
     }
 
-    public List<JCloudsSlaveTemplate> getTemplates() {
+    public List<? extends JCloudsSlaveTemplate> getTemplates() {
         return Collections.unmodifiableList(templates);
     }
+    
+    public List<? extends Descriptor<JCloudsSlaveTemplate>> getTemplatesDescriptors() {
+    	return Jenkins.getInstance().getDescriptorList(JCloudsSlaveTemplate.class);
+    }
+    
 
     /**
      * {@inheritDoc}
@@ -198,8 +207,7 @@ public class JCloudsCloud extends Cloud {
             plannedNodeList.add(new PlannedNode(template.name, Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                 public Node call() throws Exception {
                     // TODO: record the output somewhere
-                    JCloudsSlave jcloudsSlave = template.provisionSlave(StreamTaskListener.fromStdout());
-                    Jenkins.getInstance().addNode(jcloudsSlave);
+                    AbstractJCloudsSlave jcloudsSlave = template.provisionSlave(StreamTaskListener.fromStdout());
 
                     /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
                     without the connect operation, NodeProvisioner may decide that it still wants one more instance,
@@ -215,14 +223,19 @@ public class JCloudsCloud extends Cloud {
         return plannedNodeList;
     }
 
-    private void ensureLaunched(JCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
-        jcloudsSlave.waitForPhoneHome(null);
+    private void ensureLaunched(AbstractJCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
+        
+    	if (jcloudsSlave instanceof JCloudsSlave) {
+    		((JCloudsSlave)jcloudsSlave).waitForPhoneHome(null);
+    	}
         Integer launchTimeoutSec = 5 * 60;
         Computer computer = jcloudsSlave.toComputer();
         long startMoment = System.currentTimeMillis();
+
+        LOGGER.info("Waiting for " + jcloudsSlave.getDisplayName() + " to be online");
+        
         while (computer.isOffline()) {
             try {
-                LOGGER.info(String.format("Slave [%s] not connected yet", jcloudsSlave.getDisplayName()));
                 computer.connect(false).get();
                 Thread.sleep(5000l);
             } catch (InterruptedException e) {
@@ -237,6 +250,9 @@ public class JCloudsCloud extends Cloud {
                 throw new ExecutionException(new Throwable(message));
             }
         }
+        
+        LOGGER.info("Slave " + jcloudsSlave.getDisplayName() + " is now online");
+        
     }
 
     @Override
@@ -287,8 +303,7 @@ public class JCloudsCloud extends Cloud {
         if (getRunningNodesCount() < instanceCap) {
             StringWriter sw = new StringWriter();
             StreamTaskListener listener = new StreamTaskListener(sw);
-            JCloudsSlave node = t.provisionSlave(listener);
-            Hudson.getInstance().addNode(node);
+            AbstractJCloudsSlave node = t.provisionSlave(listener);
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
             sendError("Instance cap for this cloud is now reached for cloud profile: " + profile + " for template type " + name, req, rsp);
