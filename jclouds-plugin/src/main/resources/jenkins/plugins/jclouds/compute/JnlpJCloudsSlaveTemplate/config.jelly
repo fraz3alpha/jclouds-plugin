@@ -127,6 +127,12 @@
           <f:textbox />
         </f:entry>
       </f:section>
+      
+      <f:section title="Slave Re-use Strategy">
+        <f:entry title="Enforce single use slave" field="enforceSingleUse">
+          <f:checkbox />
+        </f:entry>
+      </f:section>
 
       <f:optionalBlock title="Override Server Openstack Options" name="overrideOpenstackOptions" checked="false">
         <f:entry title="Use Config Drive" field="useConfigDrive">

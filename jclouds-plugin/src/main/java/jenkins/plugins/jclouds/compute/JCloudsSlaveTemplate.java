@@ -116,6 +116,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String networks;
     public final String securityGroups;
     public final String credentialsId;
+    public final boolean enforceSingleUse;
 
     private transient Set<LabelAtom> labelSet;
 
@@ -138,7 +139,8 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                 final String vmUser, final boolean preInstalledJava, final String jvmOptions, final boolean preExistingJenkinsUser,
                                 final String fsRoot, final boolean allowSudo, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
                                 final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName, final String availabilityZone, 
-                                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
+                                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, 
+                                final String credentialsId, final boolean enforceSingleUse) {
 
     	LOGGER.info("Instantiating JCloudsSlaveTemplate");
     	
@@ -184,6 +186,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
         this.vmPassword = Util.fixEmptyAndTrim(vmPassword);
         this.vmUser = Util.fixEmptyAndTrim(vmUser);
+        this.enforceSingleUse = enforceSingleUse;
         readResolve();
     }
 
@@ -270,7 +273,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         try {
             JCloudsSlave s = new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString, description,
                     numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), waitPhoneHome,
-                    waitPhoneHomeTimeout, credentialsId);
+                    waitPhoneHomeTimeout, credentialsId, enforceSingleUse);
             Jenkins.getInstance().addNode(s);
             return s;
         } catch (Descriptor.FormException e) {

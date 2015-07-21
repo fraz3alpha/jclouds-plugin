@@ -44,10 +44,11 @@ public class JnlpJCloudsSlave extends AbstractJCloudsSlave {
      * @throws Descriptor.FormException
      */
     public JnlpJCloudsSlave(final String cloudName, String slaveName, final String fsRoot, final String labelString,
-            final String description, final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime) throws IOException, Descriptor.FormException {
+            final String description, final String numExecutors, final boolean stopOnTerminate, 
+            final int overrideRetentionTime, final boolean enforceSingleUse) throws IOException, Descriptor.FormException {
         super(cloudName, slaveName, description, fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JNLPLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                stopOnTerminate, overrideRetentionTime);
+                stopOnTerminate, overrideRetentionTime, enforceSingleUse);
     }
 
     @Extension

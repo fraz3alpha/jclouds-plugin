@@ -34,18 +34,20 @@ public abstract class AbstractJCloudsSlave extends AbstractCloudSlave {
     protected String nodeId;
     protected boolean pendingDelete;
     protected final int overrideRetentionTime;
+    protected final boolean enforceSingleUse;
     
     protected ComputerLauncher computerLauncher = null;
 
     @SuppressWarnings("rawtypes")
     public AbstractJCloudsSlave(String cloudName, String name, String nodeDescription, String remoteFS, String numExecutors, Mode mode, String labelString,
                         ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties, boolean stopOnTerminate,
-                        int overrideRetentionTime) throws Descriptor.FormException,
+                        int overrideRetentionTime, boolean enforceSingleUse) throws Descriptor.FormException,
             IOException {
         super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
         this.stopOnTerminate = stopOnTerminate;
         this.cloudName = cloudName;
         this.overrideRetentionTime = overrideRetentionTime;
+        this.enforceSingleUse = enforceSingleUse;
     }
 
     /**
@@ -101,6 +103,13 @@ public abstract class AbstractJCloudsSlave extends AbstractCloudSlave {
 
     public void setPendingDelete(boolean pendingDelete) {
         this.pendingDelete = pendingDelete;
+    }
+    
+    /**
+     * @return Whether or not this machine should ever be reused
+     */
+    public boolean isSingleUse() {
+        return enforceSingleUse;
     }
 
     /**

@@ -56,10 +56,11 @@ public class JCloudsSlave extends AbstractJCloudsSlave {
      */
     public JCloudsSlave(final String cloudName, final String fsRoot, NodeMetadata metadata, final String labelString,
             final String description, final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime,
-            String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId) throws IOException, Descriptor.FormException {
+            String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId,
+            final boolean enforceSingleUse) throws IOException, Descriptor.FormException {
         super(cloudName, metadata.getName(), description, fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                stopOnTerminate, overrideRetentionTime);
+                stopOnTerminate, overrideRetentionTime, enforceSingleUse);
         
         this.setNodeId(nodeId);
         

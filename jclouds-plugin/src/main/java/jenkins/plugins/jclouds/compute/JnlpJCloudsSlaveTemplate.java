@@ -56,7 +56,8 @@ public class JnlpJCloudsSlaveTemplate extends JCloudsSlaveTemplate {
                 final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
                 final String numExecutors, final boolean stopOnTerminate, final String jvmOptions, final String userDataTemplate, final String fsRoot,  
                 final int overrideRetentionTime, final int spoolDelayMs, final boolean assignFloatingIp, final String keyPairName, final String availabilityZone, 
-                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
+                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, 
+                final String credentialsId, final boolean enforceSingleUse) {
 		
 		super(  name,   imageId,   imageNameRegex,   hardwareId,   cores,
                  ram,   osFamily,   osVersion,   locationId,   labelString,   description,
@@ -64,7 +65,7 @@ public class JnlpJCloudsSlaveTemplate extends JCloudsSlaveTemplate {
                   NO_OP_VM_USER,   NO_OP_PREINSTALLED_JAVA,   jvmOptions,   NO_OP_PREEXISTING_JENKINS_USER,
                   fsRoot,   NO_OP_ALLOW_SUDO,   NO_OP_INSTALL_PRIVATE_KEY,  overrideRetentionTime,  spoolDelayMs,
                   assignFloatingIp,   NO_OP_WAIT_PHONE_HOME,  NO_OP_WAIT_PHONE_HOME_TIMEOUT,   keyPairName,   availabilityZone, 
-                 overrideOpenstackOptions,   assignPublicIp,   networks,   securityGroups,   credentialsId);
+                 overrideOpenstackOptions,   assignPublicIp,   networks,   securityGroups,   credentialsId, enforceSingleUse);
 		
 		LOGGER.info("Instantiating JnlpJCloudsSlaveTemplate");
 		
@@ -93,10 +94,12 @@ public class JnlpJCloudsSlaveTemplate extends JCloudsSlaveTemplate {
         	// Rate limit provisioning, if required
         	throttle();
         	
+        	// Construct a machine name that is (reasonably) unique so that it will
+        	//  match between Jenkins and OpenStack
         	String instanceName = name + "-" + UUID.randomUUID().toString();
         	
             s = new JnlpJCloudsSlave(getCloud().getDisplayName(), instanceName, getFsRoot(), labelString, description,
-                    numExecutors, stopOnTerminate, overrideRetentionTime);
+                    numExecutors, stopOnTerminate, overrideRetentionTime, enforceSingleUse);
 
             // Add node to Jenkins (needed for the provisioned machine to dial in to)
             Jenkins.getInstance().addNode(s);
