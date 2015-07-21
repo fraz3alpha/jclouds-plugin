@@ -116,6 +116,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public final String networks;
     public final String securityGroups;
     public final String credentialsId;
+    public final boolean enforceSingleUse;
 
     private transient Set<LabelAtom> labelSet;
 
@@ -130,6 +131,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
+    
     @DataBoundConstructor
     public JCloudsSlaveTemplate(final String name, final String imageId, final String imageNameRegex, final String hardwareId, final double cores,
                                 final int ram, final String osFamily, final String osVersion, final String locationId, final String labelString, final String description,
@@ -137,8 +139,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
                                 final String vmUser, final boolean preInstalledJava, final String jvmOptions, final boolean preExistingJenkinsUser,
                                 final String fsRoot, final boolean allowSudo, final boolean installPrivateKey, final int overrideRetentionTime, final int spoolDelayMs,
                                 final boolean assignFloatingIp, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String keyPairName, final String availabilityZone, 
-                                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, final String credentialsId) {
+                                final OverrideOpenstackOptions overrideOpenstackOptions, final boolean assignPublicIp, final String networks, final String securityGroups, 
+                                final String credentialsId, final boolean enforceSingleUse) {
 
+    	LOGGER.info("Instantiating JCloudsSlaveTemplate");
+    	
         this.name = Util.fixEmptyAndTrim(name);
         this.imageId = Util.fixEmptyAndTrim(imageId);
         this.imageNameRegex = Util.fixEmptyAndTrim(imageNameRegex);
@@ -156,6 +161,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.preInstalledJava = preInstalledJava;
         this.jvmOptions = Util.fixEmptyAndTrim(jvmOptions);
         this.stopOnTerminate = stopOnTerminate;
+        
 
         this.preExistingJenkinsUser = preExistingJenkinsUser;
         this.fsRoot = Util.fixEmptyAndTrim(fsRoot);
@@ -172,10 +178,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         this.assignPublicIp = assignPublicIp;
         this.networks = networks;
         this.securityGroups = securityGroups;
-        this.credentialsId = credentialsId;
-        jenkinsUser = (null == credentialsId) ? "" : SSHLauncher.lookupSystemCredentials(credentialsId).getUsername();
+        this.credentialsId = Util.fixEmptyAndTrim(credentialsId);
+        if (this.credentialsId == null) {
+        	jenkinsUser = "";
+        } else {
+        	jenkinsUser = SSHLauncher.lookupSystemCredentials(credentialsId).getUsername();
+        }
         this.vmPassword = Util.fixEmptyAndTrim(vmPassword);
         this.vmUser = Util.fixEmptyAndTrim(vmUser);
+        this.enforceSingleUse = enforceSingleUse;
         readResolve();
     }
 
@@ -222,24 +233,58 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     public Set<LabelAtom> getLabelSet() {
         return labelSet;
     }
+    
+    // Called by the Job BuildWrapper for spawning additional machines for a particular job run.
+    // These are not attached to Jenkins as slaves
+    public NodeMetadata get() {
+        LOGGER.info("Provisioning new jclouds node");
+        
+        // Rate limit provisioning, if required
+        throttle();
+        
+        // Define image parameters and setup image template
+        Template template = setupBaseTemplate(); 
+        TemplateOptions options = template.getOptions();
 
-    public JCloudsSlave provisionSlave(TaskListener listener) throws IOException {
-        NodeMetadata nodeMetadata = get();
+        // Configure additional cloud parameters
+        setupAddtionalProviderOptions(options);
+        
+        // Configure parameters used post-provision
+        setupSSH(options);
+        
+        // Setup init script
+        setupInitScript(options);
 
+        // Configure user data
+        // User data (if supported by the provider), may run before or after the init script, depending on when the
+        //  network becomes available, and an SSH connection is established. 
+        setupUserData(options, userData);
+
+        // Configure VM instance parameters, used in provisioning
+        ImmutableMap<String, String> userMetadata = ImmutableMap.of("Name", name);
+        
+        return provision(template, userMetadata);
+    }
+
+    public AbstractJCloudsSlave provisionSlave(TaskListener listener) throws IOException {
+    	
+    	NodeMetadata nodeMetadata = get();
+    	
         try {
-            return new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString, description,
+            JCloudsSlave s = new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString, description,
                     numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), waitPhoneHome,
-                    waitPhoneHomeTimeout, credentialsId);
+                    waitPhoneHomeTimeout, credentialsId, enforceSingleUse);
+            Jenkins.getInstance().addNode(s);
+            return s;
         } catch (Descriptor.FormException e) {
             throw new AssertionError("Invalid configuration " + e.getMessage());
         }
+        
     }
 
-    @Override
-    public NodeMetadata get() {
-        LOGGER.info("Provisioning new jclouds node");
-        ImmutableMap<String, String> userMetadata = ImmutableMap.of("Name", name);
-        TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
+    protected Template setupBaseTemplate() {
+    	TemplateBuilder templateBuilder = getCloud().getCompute().templateBuilder();
+    	
         if (!Strings.isNullOrEmpty(imageId)) {
             LOGGER.info("Setting image id to " + imageId);
             templateBuilder.imageId(imageId);
@@ -268,9 +313,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             templateBuilder.locationId(locationId);
         }
 
-        Template template = templateBuilder.build();
-        TemplateOptions options = template.getOptions();
-
+    	return templateBuilder.build();
+    }
+    
+    protected void setupAddtionalProviderOptions(TemplateOptions options) {
+    	
         if (!Strings.isNullOrEmpty(networks)) {
             LOGGER.info("Setting networks to " + networks);
             options.networks(csvToArray(networks));
@@ -312,6 +359,35 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.as(CloudStackTemplateOptions.class).setupStaticNat(assignPublicIp);
         }
 
+    }
+    
+    protected void throttle() {
+        // Control creation rate if limited by provider
+        if (spoolDelayMs > 0) {
+            // (JENKINS-15970) Add optional delay before spooling. Author: Adam Rofer
+            synchronized (delayLockObject) {
+                LOGGER.info("Delaying " + spoolDelayMs + " milliseconds. Current ms -> " + System.currentTimeMillis());
+                try {
+                    Thread.sleep(spoolDelayMs);
+                } catch (InterruptedException e) {
+                }
+            }
+        }
+    }
+    
+    protected void setupUserData(TemplateOptions options, String customUserData) {
+        if (customUserData != null) {
+            try {
+                Method userDataMethod = options.getClass().getMethod("userData", new byte[0].getClass());
+                LOGGER.info("Setting userData to " + customUserData);
+                userDataMethod.invoke(options, customUserData.getBytes());
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "userData is not supported by provider options class " + options.getClass().getName(), e);
+            }
+        }
+    }
+    
+    protected void setupSSH(TemplateOptions options) {
         String adminUser = vmUser;
         if (this.preExistingJenkinsUser && Strings.isNullOrEmpty(adminUser)) {
             adminUser = getJenkinsUser();
@@ -326,17 +402,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             options.overrideLoginCredentials(lc);
         }
 
-        if (spoolDelayMs > 0) {
-            // (JENKINS-15970) Add optional delay before spooling. Author: Adam Rofer
-            synchronized (delayLockObject) {
-                LOGGER.info("Delaying " + spoolDelayMs + " milliseconds. Current ms -> " + System.currentTimeMillis());
-                try {
-                    Thread.sleep(spoolDelayMs);
-                } catch (InterruptedException e) {
-                }
-            }
-        }
-
+        // Configure network/firewall to allow SSH login 
+        options.inboundPorts(22);
+    }
+    
+    protected void setupInitScript(TemplateOptions options) {
         Statement initStatement = null;
         Statement bootstrap = null;
 
@@ -369,32 +439,33 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             }
         }
 
-        options.inboundPorts(22).userMetadata(userMetadata);
-
         if (bootstrap != null) {
             options.runScript(bootstrap);
         }
-
-        if (userData != null) {
-            try {
-                Method userDataMethod = options.getClass().getMethod("userData", new byte[0].getClass());
-                LOGGER.info("Setting userData to " + userData);
-                userDataMethod.invoke(options, userData.getBytes());
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "userData is not supported by provider options class " + options.getClass().getName(), e);
-            }
+    }
+    
+    protected NodeMetadata provision(Template template, Map<String, String> metaData) {
+        
+        // Set instance name
+        template.getOptions().userMetadata(metaData);
+        
+        String instanceName = name;
+        if (metaData.get("Name") != null) {
+        	instanceName = metaData.get("Name");
         }
 
+        // Provision the slave
+        
         NodeMetadata nodeMetadata = null;
 
         try {
-            nodeMetadata = getOnlyElement(getCloud().getCompute().createNodesInGroup(name, 1, template));
+            nodeMetadata = getOnlyElement(getCloud().getCompute().createNodesInGroup(instanceName, 1, template));
         } catch (RunNodesException e) {
             throw destroyBadNodesAndPropagate(e);
         }
 
-        // Check if nodeMetadata is null and throw
         return nodeMetadata;
+
     }
 
     private RuntimeException destroyBadNodesAndPropagate(RunNodesException e) {
@@ -421,11 +492,11 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     }
 
     @Extension
-    public static final class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
+    public static class DescriptorImpl extends Descriptor<JCloudsSlaveTemplate> {
 
         @Override
         public String getDisplayName() {
-            return null;
+            return "JCloudsSlaveTemplate (SSH)";
         }
 
         public FormValidation doCheckName(@QueryParameter String value) {

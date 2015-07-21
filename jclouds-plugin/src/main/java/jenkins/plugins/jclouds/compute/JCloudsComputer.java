@@ -16,11 +16,11 @@ import org.kohsuke.stapler.HttpResponse;
  *
  * @author Vijay Kiran
  */
-public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
+public class JCloudsComputer extends AbstractCloudComputer<AbstractJCloudsSlave> {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsComputer.class.getName());
 
-    public JCloudsComputer(JCloudsSlave slave) {
+    public JCloudsComputer(AbstractJCloudsSlave slave) {
         super(slave);
     }
 
@@ -29,7 +29,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
     }
 
     @Override
-    public JCloudsSlave getNode() {
+    public AbstractJCloudsSlave getNode() {
         return super.getNode();
     }
 
@@ -58,7 +58,7 @@ public class JCloudsComputer extends AbstractCloudComputer<JCloudsSlave> {
      */
     public void deleteSlave() throws IOException, InterruptedException {
         LOGGER.info("Terminating " + getName() + " slave");
-        JCloudsSlave slave = getNode();
+        AbstractJCloudsSlave slave = getNode();
 
         // Slave already deleted
         if (slave == null) return;

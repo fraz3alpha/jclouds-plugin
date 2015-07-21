@@ -86,43 +86,17 @@
         <f:entry title="Delay before spooling up (ms)" field="spoolDelayMs">
           <f:textbox />
         </f:entry>
-      
-        <f:entry title="Init Script" field="initScript">
-          <f:textarea />
-        </f:entry>
-      
-        <f:entry title="User Data (if supported by provider)" field="userData">
-          <f:textarea />
-        </f:entry>
 
         <f:entry title="${%Jenkins Credentials}" field="credentialsId">
             <c:select/>
         </f:entry>
 
-        <f:entry title="${%Use Pre-existing Jenkins User}"
-                 field="preExistingJenkinsUser">
-          <f:checkbox />
+        <f:entry title="User Data template" field="userDataTemplate">
+          <f:textarea default="${descriptor.defaultUserDataTemplate}"/>
         </f:entry>
-      
-        <f:entry title="Allow Sudo" field="allowSudo">
-          <f:checkbox />
-        </f:entry>
-        <f:entry title="Install Private Key" field="installPrivateKey">
-          <f:checkbox />
-        </f:entry>
+
         <f:entry title="Remote FS Root" field="fsRoot">
           <f:textbox />
-        </f:entry>
-      
-        <f:entry title="Admin Username" field="vmUser">
-          <f:textbox />
-        </f:entry>
-        <f:entry title="Admin Password" field="vmPassword">
-          <f:password />
-        </f:entry>
-      
-        <f:entry title="${%Use Pre-installed Java}" field="preInstalledJava">
-          <f:checkbox />
         </f:entry>
       
         <f:entry title="Custom JVM Options" field="jvmOptions">
@@ -142,15 +116,6 @@
         </f:entry>
       </f:section>
 
-      <f:entry title="${%Wait for slave to phone home}"
-               field="waitPhoneHome">
-        <f:checkbox />
-      </f:entry>
-
-      <f:entry title="${%Phone home timeout}" field="waitPhoneHomeTimeout">
-            <f:textbox default="15"/>
-        </f:entry>
-
       <f:section title="Open Stack Options">
         <f:entry title="Assign Floating IP" field="assignFloatingIp">
           <f:checkbox />
@@ -161,9 +126,8 @@
         <f:entry title="Availability Zone" field="availabilityZone">
           <f:textbox />
         </f:entry>
-        
       </f:section>
-
+      
       <f:section title="Slave Re-use Strategy">
         <f:entry title="Enforce single use slave" field="enforceSingleUse">
           <f:checkbox />
@@ -183,5 +147,5 @@
       </f:section>
       
     </f:advanced>
-    
+
 </j:jelly>

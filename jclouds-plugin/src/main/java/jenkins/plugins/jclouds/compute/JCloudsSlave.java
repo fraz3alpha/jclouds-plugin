@@ -25,15 +25,9 @@ import org.kohsuke.stapler.DataBoundConstructor;
  *
  * @author Vijay Kiran
  */
-public class JCloudsSlave extends AbstractCloudSlave {
+public class JCloudsSlave extends AbstractJCloudsSlave {
     private static final Logger LOGGER = Logger.getLogger(JCloudsSlave.class.getName());
-    private transient NodeMetadata nodeMetaData;
-    public final boolean stopOnTerminate;
-    private final String cloudName;
-    private String nodeId;
-    private boolean pendingDelete;
     private boolean waitPhoneHome;
-    private final int overrideRetentionTime;
     private final int waitPhoneHomeTimeout;
     private final String user;
     private final String password;
@@ -41,26 +35,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
     private final boolean authSudo;
     private final String jvmOptions;
     private final String credentialsId;
-
-    @DataBoundConstructor
-    @SuppressWarnings("rawtypes")
-    public JCloudsSlave(String cloudName, String name, String nodeDescription, String remoteFS, String numExecutors, Mode mode, String labelString,
-                        ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties, boolean stopOnTerminate,
-                        int overrideRetentionTime, String user, String password, String privateKey, boolean authSudo, String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId) throws Descriptor.FormException,
-            IOException {
-        super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
-        this.stopOnTerminate = stopOnTerminate;
-        this.cloudName = cloudName;
-        this.overrideRetentionTime = overrideRetentionTime;
-        this.user = user;
-        this.password = password;
-        this.privateKey = privateKey;
-        this.authSudo = authSudo;
-        this.jvmOptions = jvmOptions;
-        this.waitPhoneHome = waitPhoneHome;
-        this.waitPhoneHomeTimeout = waitPhoneHomeTimeout;
-        this.credentialsId = credentialsId;
-    }
 
     /**
      * Constructs a new slave from JCloud's NodeMetadata
@@ -82,14 +56,23 @@ public class JCloudsSlave extends AbstractCloudSlave {
      */
     public JCloudsSlave(final String cloudName, final String fsRoot, NodeMetadata metadata, final String labelString,
             final String description, final String numExecutors, final boolean stopOnTerminate, final int overrideRetentionTime,
-            String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId) throws IOException, Descriptor.FormException {
-        this(cloudName, metadata.getName(), description, fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
+            String jvmOptions, final boolean waitPhoneHome, final int waitPhoneHomeTimeout, final String credentialsId,
+            final boolean enforceSingleUse) throws IOException, Descriptor.FormException {
+        super(cloudName, metadata.getName(), description, fsRoot, numExecutors, Mode.EXCLUSIVE, labelString,
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
-                stopOnTerminate, overrideRetentionTime, metadata.getCredentials().getUser(),
-                metadata.getCredentials().getPassword(), metadata.getCredentials().getPrivateKey(),
-                metadata.getCredentials().shouldAuthenticateSudo(), jvmOptions, waitPhoneHome, waitPhoneHomeTimeout, credentialsId);
-        this.nodeMetaData = metadata;
-        this.nodeId = nodeMetaData.getId();
+                stopOnTerminate, overrideRetentionTime, enforceSingleUse);
+        
+        this.setNodeId(nodeId);
+        
+        this.user = metadata.getCredentials().getUser();
+        this.password = metadata.getCredentials().getPassword();
+        this.privateKey = metadata.getCredentials().getPrivateKey();
+        this.authSudo = metadata.getCredentials().shouldAuthenticateSudo();
+        this.jvmOptions = jvmOptions;
+        this.waitPhoneHome = waitPhoneHome;
+        this.waitPhoneHomeTimeout = waitPhoneHomeTimeout;
+        this.credentialsId = credentialsId;
+        
     }
 
     /**
@@ -98,11 +81,11 @@ public class JCloudsSlave extends AbstractCloudSlave {
      * @return {@link NodeMetadata}
      */
     public NodeMetadata getNodeMetaData() {
-        if (this.nodeMetaData == null) {
-            final ComputeService compute = JCloudsCloud.getByName(cloudName).getCompute();
-            this.nodeMetaData = compute.getNodeMetadata(nodeId);
-        }
-        return nodeMetaData;
+        try {
+			return super.getNodeMetaData();
+		} catch (NodeUndefinedException e) {
+			throw new IllegalStateException("JClouds Slave should set nodeid on construction",e);
+		}
     }
 
     /**
@@ -132,36 +115,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
         return credentials;
     }
 
-    /**
-     * Get the retention time for this slave, defaulting to the parent cloud's if not set.
-     *
-     * @return overrideTime
-     */
-    public int getRetentionTime() {
-        if (overrideRetentionTime > 0) {
-            return overrideRetentionTime;
-        } else {
-            return JCloudsCloud.getByName(cloudName).getRetentionTime();
-        }
-    }
-
-    /**
-     * Get the JClouds profile identifier for the Cloud associated with this slave.
-     *
-     * @return cloudName
-     */
-    public String getCloudName() {
-        return cloudName;
-    }
-
-    public boolean isPendingDelete() {
-        return pendingDelete;
-    }
-
-    public void setPendingDelete(boolean pendingDelete) {
-        this.pendingDelete = pendingDelete;
-    }
-
     public boolean isWaitPhoneHome() {
         return waitPhoneHome;
     }
@@ -181,21 +134,12 @@ public class JCloudsSlave extends AbstractCloudSlave {
         return credentialsId;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public AbstractCloudComputer<JCloudsSlave> createComputer() {
-        LOGGER.info("Creating a new JClouds Slave");
-        return new JCloudsComputer(this);
-    }
-
     @Extension
     public static final class JCloudsSlaveDescriptor extends SlaveDescriptor {
 
         @Override
         public String getDisplayName() {
-            return "JClouds Slave";
+            return "JClouds (SSH) Slave";
         }
 
         /**
@@ -204,25 +148,6 @@ public class JCloudsSlave extends AbstractCloudSlave {
         @Override
         public boolean isInstantiable() {
             return false;
-        }
-    }
-
-    /**
-     * Destroy the node calls {@link ComputeService#destroyNode}
-     */
-    @Override
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        final ComputeService compute = JCloudsCloud.getByName(cloudName).getCompute();
-        if (compute.getNodeMetadata(nodeId) != null && compute.getNodeMetadata(nodeId).getStatus().equals(NodeMetadata.Status.RUNNING)) {
-            if (stopOnTerminate) {
-                LOGGER.info("Suspending the Slave : " + getNodeName());
-                compute.suspendNode(nodeId);
-            } else {
-                LOGGER.info("Terminating the Slave : " + getNodeName());
-                compute.destroyNode(nodeId);
-            }
-        } else {
-            LOGGER.info("Slave " + getNodeName() + " is already not running.");
         }
     }
 

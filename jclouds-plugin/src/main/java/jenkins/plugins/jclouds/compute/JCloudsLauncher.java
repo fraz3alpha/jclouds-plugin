@@ -32,8 +32,11 @@ public class JCloudsLauncher extends ComputerLauncher {
     public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
 
         PrintStream logger = listener.getLogger();
+        
 
         final JCloudsSlave slave = (JCloudsSlave) computer.getNode();
+        logger.println(String.format("Slave [%s] not connected yet", slave.getDisplayName()));
+        
         final String[] addresses = getConnectionAddresses(slave.getNodeMetaData(), logger);
 
         slave.waitForPhoneHome(logger);
