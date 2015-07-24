@@ -12,6 +12,8 @@ import hudson.tasks.BuildWrapperDescriptor;
 import java.io.IOException;
 import java.util.logging.Logger;
 
+import jenkins.plugins.jclouds.compute.JCloudsCloud.OfflineTrigger;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class JCloudsOneOffSlave extends BuildWrapper {
@@ -35,6 +37,7 @@ public class JCloudsOneOffSlave extends BuildWrapper {
                 public boolean tearDown(AbstractBuild build, final BuildListener listener) throws IOException, InterruptedException {
                     LOGGER.warning("Single-use slave " + c.getName() + " getting torn down.");
                     c.setTemporarilyOffline(true, OfflineCause.create(Messages._OneOffCause()));
+                    JCloudsLogging.slaveMarkedOffline(c.getNode(), OfflineTrigger.BUILD_WRAPPER);
                     return true;
                 }
             };

@@ -10,6 +10,7 @@ import hudson.slaves.OfflineCause;
 import java.util.logging.Logger;
 
 import jenkins.YesNoMaybe;
+import jenkins.plugins.jclouds.compute.JCloudsCloud.OfflineTrigger;
 
 /*
  * This Listener looks for the completion of jobs on a JClouds slave, and 
@@ -37,6 +38,7 @@ public class JCloudsMachineReaper extends RunListener<Run<?, ?>> {
 					if (c.isOnline()) {
 						logger.info("JCloudsSlave is set as single-use, marking "+c.getName()+" offline");
 						c.setTemporarilyOffline(true, OfflineCause.create(Messages._OneOffCause()));
+						JCloudsLogging.slaveMarkedOffline(jcs, OfflineTrigger.MACHINE_REAPER);
 						jcs.setPendingDelete(true);
 					} else {
 						logger.info("JCloudsSlave is set as single-use, but is not online, unable to mark it eligible for deletion");

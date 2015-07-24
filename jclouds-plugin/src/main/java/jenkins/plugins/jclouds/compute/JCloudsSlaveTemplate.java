@@ -11,6 +11,9 @@ import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -855,4 +858,25 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             return FormValidation.validateNonNegativeInteger(value);
         }
     }
+    
+    public Map<String, Object> getInfo() {
+	Map<String, Object> p = new HashMap<String, Object>();
+	
+        List<String> labelList = new LinkedList<String>();
+        Set<LabelAtom> labels = this.getLabelSet();
+        for (LabelAtom l: labels) {
+            labelList.add(l.getName());
+        }
+
+        p.put("TemplateName", this.name);
+        p.put("TemplateLabelString", this.labelString);
+        p.put("TemplateLabelList", labelList);
+        p.put("TemplateImage", this.imageId);
+        p.put("TemplateHardwareId", this.hardwareId);
+        p.put("TemplateNetworkId", this.networks);
+        p.put("TemplateType", this.getClass().getName());
+	
+	return p;
+    }
+    
 }

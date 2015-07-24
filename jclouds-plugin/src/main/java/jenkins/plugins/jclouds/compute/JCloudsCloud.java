@@ -213,22 +213,33 @@ public class JCloudsCloud extends Cloud {
             plannedNodeList.add(new PlannedNode(template.name, Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                 public Node call() throws Exception {
                     long start = System.currentTimeMillis();
-                    try {
-                        printProvisionStatusUpdate(ProvisionType.AUTOMATIC, ProvisionState.STARTED, 0, template);
-	                AbstractJCloudsSlave jcloudsSlave = template.provisionSlave(StreamTaskListener.fromStdout());
 
-	                /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
-	                without the connect operation, NodeProvisioner may decide that it still wants one more instance,
-	                because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
-	                there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
-	                successful prevents this problem.  */
-	                ensureLaunched(jcloudsSlave);
-	                printProvisionStatusUpdate(ProvisionType.AUTOMATIC, ProvisionState.FINISHED_SUCCESS, System.currentTimeMillis() - start, template);
-	                return jcloudsSlave;
-                    } catch (Exception e) {
-                        printProvisionStatusUpdate(ProvisionType.AUTOMATIC, ProvisionState.FINISHED_FAILURE, System.currentTimeMillis() - start, template);
-                        throw e;
+                    JCloudsLogging.slaveCreateStarted(ProvisionType.AUTOMATIC, template);
+
+                    AbstractJCloudsSlave jcloudsSlave = null;
+                    try {
+                	JCloudsLogging.slaveProvisionStarted(template, System.currentTimeMillis() - start);
+                	jcloudsSlave = template.provisionSlave(StreamTaskListener.fromStdout());
+                	JCloudsLogging.slaveProvisionFinished(template, jcloudsSlave, System.currentTimeMillis() - start);
+                    } catch (Throwable t) {
+                	JCloudsLogging.slaveProvisionFinished(template, jcloudsSlave, System.currentTimeMillis() - start, t);
+                	throw t;
                     }
+
+                    /* Cloud instances may have a long init script. If we declare the provisioning complete by returning
+                    without the connect operation, NodeProvisioner may decide that it still wants one more instance,
+                    because it sees that (1) all the slaves are offline (because it's still being launched) and (2)
+                    there's no capacity provisioned yet. Deferring the completion of provisioning until the launch goes
+                    successful prevents this problem.  */
+                    try {
+                	ensureLaunched(jcloudsSlave);
+                    } catch (Throwable t) {
+                	JCloudsLogging.slaveCreateFinished(ProvisionType.AUTOMATIC, template, jcloudsSlave, System.currentTimeMillis() - start, t);
+                	throw t;
+                    }
+                    JCloudsLogging.slaveCreateFinished(ProvisionType.AUTOMATIC, template, jcloudsSlave, System.currentTimeMillis() - start);
+
+                    return jcloudsSlave;
                 }
             }), Util.tryParseNumber(template.numExecutors, 1).intValue()));
             excessWorkload -= template.getNumExecutors();
@@ -246,37 +257,11 @@ public class JCloudsCloud extends Cloud {
         MANUAL,
         AUTOMATIC
     }
-
-    public static void printProvisionStatusUpdate(ProvisionType type, ProvisionState state, long elapsedTimeMillis, JCloudsSlaveTemplate template) {
-
-        Map<String, Object> p = new HashMap<String, Object>();
-        p.put("Cloud", template.cloud.getDisplayName());
-        p.put("CloudType", template.cloud.providerName);
-        p.put("CloudEndpoint", template.cloud.endPointUrl);
-        p.put("CloudUser", template.cloud.identity);
-
-        p.put("timestamp", new Long(System.currentTimeMillis()));
-        p.put("ElapsedTime", new Long(elapsedTimeMillis));
-        p.put("State", state.toString());
-        p.put("Type", type.toString());
-
-        p.put("TemplateName", template.name);
-
-        List<String> labelList = new LinkedList<String>();
-        Set<LabelAtom> labels = template.getLabelSet();
-        for (LabelAtom l: labels) {
-            labelList.add(l.getName());
-        }
-
-        p.put("TemplateLabels", labelList);
-        p.put("TemplateImage", template.imageId);
-        p.put("TemplateHardwareId", template.hardwareId);
-        p.put("TemplateNetworkId", template.networks);
-        p.put("TemplateType", template.getClass().getName());
-
-        Gson gson = new Gson();
-        LOGGER.info("JCloudsStatusJSON: " + gson.toJson(p));
-
+    
+    public enum OfflineTrigger {
+	BUILD_WRAPPER,
+	MACHINE_REAPER,
+	RETENTION_TIME_EXCEEDED
     }
 
     private void ensureLaunched(AbstractJCloudsSlave jcloudsSlave) throws InterruptedException, ExecutionException {
@@ -386,14 +371,16 @@ public class JCloudsCloud extends Cloud {
             StreamTaskListener listener = new StreamTaskListener(sw);
             AbstractJCloudsSlave node = null;
             long start = System.currentTimeMillis();
+            JCloudsLogging.slaveCreateStarted(ProvisionType.MANUAL, t);
             try {
-                printProvisionStatusUpdate(ProvisionType.MANUAL, ProvisionState.STARTED, 0, t);
+        	JCloudsLogging.slaveProvisionStarted(t, System.currentTimeMillis() - start);
                 node = t.provisionSlave(listener);
-                printProvisionStatusUpdate(ProvisionType.MANUAL, ProvisionState.FINISHED_SUCCESS, System.currentTimeMillis() - start, t);
+                JCloudsLogging.slaveProvisionFinished(t, node, System.currentTimeMillis() - start);
             } catch (Exception e) {
-                printProvisionStatusUpdate(ProvisionType.MANUAL, ProvisionState.FINISHED_FAILURE, System.currentTimeMillis() - start, t);
+        	JCloudsLogging.slaveProvisionFinished(t, node, System.currentTimeMillis() - start, e);
                 throw e;
             }
+            JCloudsLogging.slaveCreateFinished(ProvisionType.MANUAL, t, node, System.currentTimeMillis());
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
             sendError("Instance cap for this cloud is now reached for cloud profile: " + profile + " for template type " + name, req, rsp);
@@ -579,5 +566,16 @@ public class JCloudsCloud extends Cloud {
             }
             return FormValidation.ok();
         }
+    }
+    
+    public Map<String, Object> getInfo() {
+	Map<String, Object> p = new HashMap<String, Object>();
+	
+        p.put("CloudName", this.getDisplayName());
+        p.put("CloudType", this.providerName);
+        p.put("CloudEndpoint", this.endPointUrl);
+        p.put("CloudUser", this.identity);
+	
+	return p;
     }
 }
