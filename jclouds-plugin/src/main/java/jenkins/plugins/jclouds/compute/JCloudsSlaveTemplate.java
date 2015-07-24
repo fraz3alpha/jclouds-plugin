@@ -274,6 +274,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             JCloudsSlave s = new JCloudsSlave(getCloud().getDisplayName(), getFsRoot(), nodeMetadata, labelString, description,
                     numExecutors, stopOnTerminate, overrideRetentionTime, getJvmOptions(), waitPhoneHome,
                     waitPhoneHomeTimeout, credentialsId, enforceSingleUse);
+            s.setNodeId(nodeMetadata.getId());
             Jenkins.getInstance().addNode(s);
             return s;
         } catch (Descriptor.FormException e) {
