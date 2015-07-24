@@ -37,8 +37,9 @@ public class JCloudsMachineReaper extends RunListener<Run<?, ?>> {
 					if (c.isOnline()) {
 						logger.info("JCloudsSlave is set as single-use, marking "+c.getName()+" offline");
 						c.setTemporarilyOffline(true, OfflineCause.create(Messages._OneOffCause()));
+						jcs.setPendingDelete(true);
 					} else {
-						logger.info("JCloudsSlave is set as single-use, but is not online, marking "+c.getName()+" offline");
+						logger.info("JCloudsSlave is set as single-use, but is not online, unable to mark it eligible for deletion");
 					}
 				} else {
 					logger.info("JCloudsSlave is not single use, leaving "+c.getName()+" alone");
