@@ -23,7 +23,8 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return MIN * 5;
+	// Reducing this to 1, was 5.
+        return MIN * 1;
     }
 
     public static void invoke() {
