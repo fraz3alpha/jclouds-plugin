@@ -223,6 +223,7 @@ public class JCloudsCloud extends Cloud {
                 	JCloudsLogging.slaveProvisionFinished(template, jcloudsSlave, System.currentTimeMillis() - start);
                     } catch (Throwable t) {
                 	JCloudsLogging.slaveProvisionFinished(template, jcloudsSlave, System.currentTimeMillis() - start, t);
+                        JCloudsLogging.slaveCreateFinished(ProvisionType.AUTOMATIC, template, jcloudsSlave, System.currentTimeMillis() - start, t);
                 	throw t;
                     }
 
@@ -378,9 +379,10 @@ public class JCloudsCloud extends Cloud {
                 JCloudsLogging.slaveProvisionFinished(t, node, System.currentTimeMillis() - start);
             } catch (Exception e) {
         	JCloudsLogging.slaveProvisionFinished(t, node, System.currentTimeMillis() - start, e);
+                JCloudsLogging.slaveCreateFinished(ProvisionType.MANUAL, t, node, System.currentTimeMillis() - start, e);
                 throw e;
             }
-            JCloudsLogging.slaveCreateFinished(ProvisionType.MANUAL, t, node, System.currentTimeMillis());
+            JCloudsLogging.slaveCreateFinished(ProvisionType.MANUAL, t, node, System.currentTimeMillis() - start);
             rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
         } else {
             sendError("Instance cap for this cloud is now reached for cloud profile: " + profile + " for template type " + name, req, rsp);
