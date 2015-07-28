@@ -62,7 +62,7 @@ public class JCloudsSlave extends AbstractJCloudsSlave {
                 new JCloudsLauncher(), new JCloudsRetentionStrategy(), Collections.<NodeProperty<?>>emptyList(),
                 stopOnTerminate, overrideRetentionTime, enforceSingleUse);
         
-        this.setNodeId(nodeId);
+        this.setNodeId(metadata.getId());
         
         this.user = metadata.getCredentials().getUser();
         this.password = metadata.getCredentials().getPassword();

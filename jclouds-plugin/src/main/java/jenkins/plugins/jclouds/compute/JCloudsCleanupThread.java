@@ -23,7 +23,8 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return MIN * 5;
+	// Reducing this to 1, was 5.
+        return MIN * 1;
     }
 
     public static void invoke() {
@@ -48,12 +49,17 @@ public final class JCloudsCleanupThread extends AsyncPeriodicWork {
                     ListenableFuture<?> f = executor.submit(new Runnable() {
                         public void run() {
                             logger.log(Level.INFO, "Deleting pending node " + comp.getName());
+                            long start = System.currentTimeMillis();
+                            JCloudsLogging.slaveDeleteStarted(comp.getNode());
                             try {
                                 comp.getNode().terminate();
+                                JCloudsLogging.slaveDeleteFinished(comp.getNode(), System.currentTimeMillis() - start);
                             } catch (IOException e) {
                                 logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
+                                JCloudsLogging.slaveDeleteFinished(comp.getNode(), System.currentTimeMillis() - start, e);
                             } catch (InterruptedException e) {
                                 logger.log(Level.WARNING, "Failed to disconnect and delete " + c.getName() + ": " + e.getMessage());
+                                JCloudsLogging.slaveDeleteFinished(comp.getNode(), System.currentTimeMillis() - start, e);
                             }
                         }
                     });

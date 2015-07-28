@@ -13,7 +13,9 @@ import hudson.slaves.RetentionStrategy;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import org.jclouds.compute.ComputeService;
@@ -35,6 +37,7 @@ public abstract class AbstractJCloudsSlave extends AbstractCloudSlave {
     protected boolean pendingDelete;
     protected final int overrideRetentionTime;
     protected final boolean enforceSingleUse;
+    protected final long createTime;
     
     protected ComputerLauncher computerLauncher = null;
 
@@ -48,6 +51,7 @@ public abstract class AbstractJCloudsSlave extends AbstractCloudSlave {
         this.cloudName = cloudName;
         this.overrideRetentionTime = overrideRetentionTime;
         this.enforceSingleUse = enforceSingleUse;
+        this.createTime = System.currentTimeMillis();
     }
 
     /**
@@ -158,6 +162,27 @@ public abstract class AbstractJCloudsSlave extends AbstractCloudSlave {
         } else {
             LOGGER.info("Slave " + getNodeName() + " is already not running.");
         }
+    }
+    
+    /*
+     * Helper methods to determine how long this slave has been around for
+     */
+    public long getCreateTime() {
+	return this.createTime;
+    }
+    
+    public long getUptime() {
+	return System.currentTimeMillis() - this.createTime;
+    }
+    
+    public Map<String, Object> getInfo() {
+	Map<String, Object> p = new HashMap<String, Object>();
+	
+        p.put("SlaveName", this.getDisplayName());
+        p.put("SlaveUptime", this.getUptime());
+        p.put("SlaveNodeId", this.nodeId);
+	
+	return p;
     }
     
 }

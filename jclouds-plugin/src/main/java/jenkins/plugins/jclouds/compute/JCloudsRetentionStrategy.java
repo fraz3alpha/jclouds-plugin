@@ -8,6 +8,8 @@ import hudson.util.TimeUnit2;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
+import jenkins.plugins.jclouds.compute.JCloudsCloud.OfflineTrigger;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -37,6 +39,7 @@ public class JCloudsRetentionStrategy extends RetentionStrategy<JCloudsComputer>
                             LOGGER.info("Setting " + c.getName() + " to be deleted.");
                             if (!c.isOffline()) {
                                 c.setTemporarilyOffline(true, OfflineCause.create(Messages._DeletedCause()));
+                                JCloudsLogging.slaveMarkedOffline(c.getNode(), OfflineTrigger.RETENTION_TIME_EXCEEDED);
                             }
                             c.getNode().setPendingDelete(true);
                         }

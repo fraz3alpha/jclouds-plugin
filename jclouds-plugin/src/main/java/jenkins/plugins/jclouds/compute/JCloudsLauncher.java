@@ -42,13 +42,23 @@ public class JCloudsLauncher extends ComputerLauncher {
         slave.waitForPhoneHome(logger);
 
         String host = addresses[0];
+        logger.println(String.format("Slave [%s] has IP: [%s]", slave.getDisplayName(), host));
         if ("0.0.0.0".equals(host)) {
             logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
             throw new IOException("goto sleep");
         }
 
-        SSHLauncher launcher = new SSHLauncher(host, 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), null, null);
-        launcher.launch(computer, listener);
+        logger.println(String.format("Initiating SSH connection to [%s]", slave.getDisplayName()));
+        Integer retryCount = Integer.valueOf(10);
+        Integer retryWaitTime = Integer.valueOf(20);
+        SSHLauncher launcher = new SSHLauncher(host, 22, slave.getCredentialsId(), slave.getJvmOptions(), null, "", "", Integer.valueOf(0), retryCount, retryWaitTime);
+        try {
+            launcher.launch(computer, listener);
+        } catch (InterruptedException ie) {
+            // TODO
+            // If we fail to launch the slave, make sure we mark it as offline, and clean it up
+            throw ie;
+        }
     }
 
     /**
